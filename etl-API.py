@@ -1,7 +1,7 @@
 import logging
 from config import API_TOKEN, EMAIL, API_BASE_URL
 from ingest import fetch_data, parse_data
-from transform import TRANSFORMERS, save_dataframe
+from transform import TRANSFORMERS, save_dataframe, save_orders
 
 PARAMS = {
     "email": EMAIL,
@@ -38,6 +38,9 @@ def main():
             logger.warning(f"No transformer defined for table: {tn}")
         
         save_dataframe(tables[tn], tn, output_dir='output')
+
+    if 'orders' in tables and 'order_items' in tables:
+        save_orders(tables['orders'], tables['order_items'], output_dir='output/orders')
 
 if __name__ == "__main__":
     main()

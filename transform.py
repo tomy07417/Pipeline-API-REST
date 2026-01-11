@@ -246,3 +246,36 @@ def save_dataframe(df: pd.DataFrame, table_name: str, output_dir: str) -> None:
 
     file_path = os.path.join(output_dir, f"{table_name}.parquet")
     df.to_parquet(file_path, index=False, engine="pyarrow")
+
+def save_orders(orders: pd.DataFrame, order_items: pd.DataFrame, output_dir: str) -> None:
+    """
+    Save orders and order_items DataFrames to CSV files in the specified output directory.
+
+    Parameters:
+    orders (pd.DataFrame): The orders DataFrame to save.
+    order_items (pd.DataFrame): The order_items DataFrame to save.
+    output_dir (str): The directory where the CSV files will be saved.
+    """
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    min_year = orders['order_date'].dt.year.min()
+    max_year = orders['order_date'].dt.year.max()
+
+    for year in range(min_year, max_year + 1):
+        for m in range(1, 13):
+            if not os.path.exists(os.path.join(output_dir, str(year))):
+                os.makedirs(os.path.join(output_dir, str(year)))
+
+            if not os.path.exists(os.path.join(output_dir, str(year), str(m))):
+                os.makedirs(os.path.join(output_dir, str(year), str(m)))
+
+            monthly_orders = orders[(orders['order_date'].dt.year == year) & (orders['order_date'].dt.month == m)]
+            monthly_order_items = order_items[order_items['order_id'].isin(monthly_orders['order_id'])]
+
+            monthly_order_items.to_parquet(
+                os.path.join(output_dir, str(year), str(m), "order_items.parquet"))
+
+            monthly_orders.to_parquet(
+                os.path.join(output_dir, str(year), str(m), "orders.parquet"))

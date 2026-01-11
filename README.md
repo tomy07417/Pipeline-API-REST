@@ -1,6 +1,6 @@
 # 🚀 Pipeline ETL - Consumo de API REST
 
-Pipeline de datos profesional que consume APIs REST con Python, implementando manejo robusto de errores, logging profesional y almacenamiento particionado.
+Pipeline de datos profesional que consume una API REST de e-commerce con Python, implementando manejo robusto de errores, logging profesional y almacenamiento en formato Parquet con particionamiento por fecha.
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
 ![Status](https://img.shields.io/badge/Status-Completado-success.svg)
@@ -16,6 +16,7 @@ Pipeline de datos profesional que consume APIs REST con Python, implementando ma
 - [Instalación](#-instalación)
 - [Configuración](#-configuración)
 - [Uso](#-uso)
+- [Tablas Procesadas](#-tablas-procesadas)
 - [Características Principales](#-características-principales)
 - [Manejo de Errores](#-manejo-de-errores)
 - [Outputs](#-outputs)
@@ -28,17 +29,17 @@ Pipeline de datos profesional que consume APIs REST con Python, implementando ma
 
 Este proyecto implementa un pipeline ETL completo que:
 
-- **EXTRACT**: Consume datos de una API REST externa con autenticación
-- **TRANSFORM**: Procesa y limpia los datos recibidos
-- **LOAD**: Guarda los datos particionados por fecha para consultas eficientes
+- **EXTRACT**: Consume datos de una API REST de e-commerce con autenticación y reintentos automáticos
+- **TRANSFORM**: Procesa y limpia 11 tablas diferentes, optimizando tipos de datos y manejando valores nulos
+- **LOAD**: Guarda los datos en formato Parquet, con órdenes particionadas por año/mes
 
 ### 🎯 Objetivos de Aprendizaje
 
 - ✅ Consumir APIs REST con Python
-- ✅ Manejar errores de red (timeouts, reintentos)
+- ✅ Manejar errores de red (timeouts, reintentos con exponential backoff)
 - ✅ Implementar logging profesional
 - ✅ Usar variables de entorno para secrets
-- ✅ Guardar datos particionados
+- ✅ Guardar datos en formato Parquet particionado
 
 ---
 
@@ -48,9 +49,10 @@ Este proyecto implementa un pipeline ETL completo que:
 |------------|-----|
 | **Python 3.9+** | Lenguaje principal |
 | **Requests** | Consumo de APIs HTTP |
+| **Pandas** | Procesamiento y transformación de datos |
+| **PyArrow** | Escritura de archivos Parquet |
 | **Python-dotenv** | Manejo de variables de entorno |
 | **Logging** | Registro de eventos y debugging |
-| **Pathlib** | Manejo de rutas y archivos |
 
 ---
 
@@ -58,20 +60,26 @@ Este proyecto implementa un pipeline ETL completo que:
 
 ```
 Pipeline-API-REST/
-├── 📁 src/
-│   ├── __init__.py
-│   ├── extract.py          # Lógica de extracción de API
-│   ├── transform.py        # Procesamiento de datos
-│   ├── load.py             # Guardado particionado
-│   └── pipeline.py         # Orquestador principal
-├── 📁 data/
-│   └── raw/                # Datos crudos particionados
-│       └── year=YYYY/
-│           └── month=MM/
-│               └── day=DD/
-├── 📁 logs/                # Archivos de log
-├── 📁 tests/               # Tests unitarios
-├── .env.example            # Template de variables de entorno
+├── config.py               # Configuración y variables de entorno
+├── ingest.py               # Extracción de datos con retry
+├── transform.py            # Transformaciones para cada tabla
+├── etl-API.py              # Orquestador principal del pipeline
+├── exploracion.ipynb       # Notebook de exploración de datos
+├── output/                 # Datos procesados
+│   ├── categories.parquet
+│   ├── brands.parquet
+│   ├── suppliers.parquet
+│   ├── warehouses.parquet
+│   ├── products.parquet
+│   ├── inventory.parquet
+│   ├── customers.parquet
+│   ├── promotions.parquet
+│   ├── orders.parquet
+│   ├── order_items.parquet
+│   ├── reviews.parquet
+│   └── orders/             # Órdenes particionadas
+│       └── {year}/{month}/
+├── .env                    # Variables de entorno (no versionado)
 ├── .gitignore
 ├── requirements.txt
 └── README.md
@@ -91,13 +99,13 @@ cd Pipeline-API-REST
 ### 2. Crear entorno virtual
 
 ```bash
-python -m venv venv
+python -m venv .venv
 
 # Windows
-venv\Scripts\activate
+.venv\Scripts\activate
 
 # Linux/Mac
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 ### 3. Instalar dependencias
@@ -112,25 +120,12 @@ pip install -r requirements.txt
 
 ### Variables de Entorno
 
-1. Copiar el archivo de ejemplo:
-
-```bash
-cp .env.example .env
-```
-
-2. Editar `.env` con tus credenciales:
+Crear un archivo `.env` en la raíz del proyecto:
 
 ```env
-# API Configuration
+EMAIL=tu_email@ejemplo.com
 API_TOKEN=tu_token_aqui
-API_BASE_URL=https://api.ejemplo.com
-
-# Retry Configuration
-MAX_RETRIES=3
-TIMEOUT_SECONDS=30
-
-# Logging
-LOG_LEVEL=INFO
+API_BASE_URL=https://iansaura.com/api
 ```
 
 > ⚠️ **IMPORTANTE**: Nunca subas el archivo `.env` a git. Está incluido en `.gitignore`.
@@ -142,24 +137,32 @@ LOG_LEVEL=INFO
 ### Ejecutar el pipeline completo
 
 ```bash
-python -m src.pipeline
+python etl-API.py
 ```
 
-### Ejecutar solo extracción
+### Explorar los datos
 
-```bash
-python -m src.extract
-```
+Abrir `exploracion.ipynb` en Jupyter o VS Code para analizar la estructura de cada tabla.
 
-### Ver logs
+---
 
-```bash
-# Windows
-type logs\pipeline.log
+## 📊 Tablas Procesadas
 
-# Linux/Mac
-cat logs/pipeline.log
-```
+El pipeline procesa 11 tablas de un sistema de e-commerce:
+
+| Tabla | Descripción | Transformaciones Principales |
+|-------|-------------|------------------------------|
+| `categories` | Categorías de productos | Manejo de nulls, tipos category |
+| `brands` | Marcas | Optimización a category |
+| `suppliers` | Proveedores | Normalización de email, rating a float32 |
+| `warehouses` | Depósitos | Optimización de enteros a int32 |
+| `products` | Productos | Conversión de fechas, precios a float32 |
+| `inventory` | Inventario | Fechas de restock, niveles de stock |
+| `customers` | Clientes | 3 columnas de fecha, segmentos |
+| `promotions` | Promociones | Fechas inicio/fin, tipos de descuento |
+| `orders` | Órdenes | Fecha, status, métodos de pago |
+| `order_items` | Items de órdenes | IDs nullable, precios optimizados |
+| `reviews` | Reseñas | Rating a float16, fechas |
 
 ---
 
@@ -167,7 +170,7 @@ cat logs/pipeline.log
 
 ### 🔄 Retry Automático con Exponential Backoff
 
-El pipeline implementa reintentos inteligentes:
+El pipeline implementa reintentos inteligentes en `ingest.py`:
 
 ```
 Intento 1 falla → Esperar 2 segundos
@@ -175,35 +178,27 @@ Intento 2 falla → Esperar 4 segundos
 Intento 3 falla → Esperar 8 segundos
 ```
 
-Esto evita sobrecargar el servidor cuando tiene problemas.
-
 ### 📊 Logging Profesional
 
 Logging estructurado con diferentes niveles:
 
-- `INFO`: Operaciones normales
-- `WARNING`: Rate limits, reintentos
-- `ERROR`: Fallos recuperables
-- `CRITICAL`: Fallos fatales
+```
+2026-01-10 20:43:32,037 - INFO - Fetching 1000 rows of ecommerce data...
+2026-01-10 20:43:32,690 - INFO - Table: categories
+2026-01-10 20:43:32,693 - INFO - Transforming data...
+```
 
 ### 🔒 Manejo Seguro de Secrets
 
-- Variables de entorno via `.env`
-- Nunca se hardcodean tokens
+- Variables de entorno via `.env` y `python-dotenv`
+- Validación de configuración en `config.py`
 - `.gitignore` configurado correctamente
 
-### 📁 Almacenamiento Particionado
+### 📁 Almacenamiento en Parquet
 
-Los datos se guardan con estructura de particiones Hive-style:
-
-```
-data/raw/year=2026/month=01/day=10/data.json
-```
-
-Esto permite:
-- Queries eficientes por fecha
-- Fácil integración con Spark/Athena
-- Organización clara de datos históricos
+- Formato columnar eficiente para analytics
+- Compresión automática
+- Órdenes particionadas por `year/month` para queries eficientes
 
 ---
 
@@ -228,11 +223,25 @@ Esto permite:
 
 ## 📊 Outputs
 
-| Paso | Output Esperado |
-|------|-----------------|
-| Extract | Response exitosa de la API (200 OK) |
-| Transform | Datos procesados y validados |
-| Load | Archivos guardados particionados por fecha |
+```
+output/
+├── categories.parquet      (10 registros)
+├── brands.parquet
+├── suppliers.parquet       (8 registros)
+├── warehouses.parquet      (5 registros)
+├── products.parquet        (100 registros)
+├── inventory.parquet       (195 registros)
+├── customers.parquet       (334 registros)
+├── promotions.parquet      (10 registros)
+├── orders.parquet          (1000 registros)
+├── order_items.parquet     (3031 registros)
+├── reviews.parquet         (200 registros)
+└── orders/
+    ├── 2023/
+    ├── 2024/
+    ├── 2025/
+    └── 2026/
+```
 
 ---
 
@@ -245,27 +254,8 @@ Esto permite:
 1. **Exponential Backoff es esencial**: Sin él, saturás la API cuando hay problemas
 2. **Logging estructurado**: Hace debugging 10x más fácil que print statements
 3. **Variables de entorno**: Nunca, NUNCA hardcodear secrets
-4. **Timeouts obligatorios**: Evitan que el script se cuelgue indefinidamente
+4. **Parquet > CSV**: Mejor compresión, tipos de datos preservados, más rápido
 5. **Particionamiento**: Facilita queries y organiza datos históricos
-
----
-
-## 📈 Métricas del Proyecto
-
-- 🎯 **Uptime**: 99.9% - Solo 1 falla en 3 meses de ejecución
-- 📊 **Capacidad**: Procesamiento de 50,000+ requests diarios
-- ⚡ **Recuperación**: Automática en menos de 1 minuto
-- 🕐 **Scheduling**: Datos disponibles cada día a las 6am
-
----
-
-## 🔮 Próximos Pasos
-
-- [ ] Agregar tests unitarios con pytest
-- [ ] Implementar circuit breaker
-- [ ] Agregar métricas con Prometheus
-- [ ] Containerizar con Docker
-- [ ] Orquestar con Airflow
 
 ---
 
@@ -273,8 +263,8 @@ Esto permite:
 
 **Tomás** - Data Engineer
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue.svg)](https://linkedin.com/in/tu-perfil)
-[![GitHub](https://img.shields.io/badge/GitHub-Follow-black.svg)](https://github.com/tu-usuario)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue.svg)](https://linkedin.com/in/tomasamundarain)
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-black.svg)](https://github.com/tomy07417)
 
 ---
 
