@@ -3,19 +3,43 @@
 Pipeline de datos profesional que consume una API REST de e-commerce con Python, implementando manejo robusto de errores, logging profesional y almacenamiento en formato Parquet con particionamiento por fecha.
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)
 ![Status](https://img.shields.io/badge/Status-Completado-success.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 ---
 
+## ⚡ Quick Start (Docker)
+
+```bash
+# 1. Clonar y entrar al proyecto
+git clone https://github.com/tu-usuario/Pipeline-API-REST.git
+cd Pipeline-API-REST
+
+# 2. Crear archivo .env con tus credenciales
+echo "EMAIL=tu_email@ejemplo.com" > .env
+echo "API_TOKEN=tu_token" >> .env
+echo "API_BASE_URL=https://iansaura.com/api" >> .env
+
+# 3. Construir y ejecutar
+docker build -t pipeline_api_rest .
+docker run -v ${PWD}\output:/app/output --name pipeline_rest pipeline_api_rest
+```
+
+> 📁 Los datos se guardarán en `./output/`
+
+---
+
 ## 📋 Tabla de Contenidos
 
+- [Quick Start (Docker)](#-quick-start-docker)
 - [Descripción](#-descripción)
 - [Tecnologías](#-tecnologías)
 - [Estructura del Proyecto](#-estructura-del-proyecto)
-- [Instalación](#-instalación)
+- [Instalación Local](#-instalación-local)
 - [Configuración](#-configuración)
 - [Uso](#-uso)
+- [Docker (Avanzado)](#-docker-avanzado)
 - [Tablas Procesadas](#-tablas-procesadas)
 - [Características Principales](#-características-principales)
 - [Manejo de Errores](#-manejo-de-errores)
@@ -87,7 +111,9 @@ Pipeline-API-REST/
 
 ---
 
-## ⚙️ Instalación
+## ⚙️ Instalación Local
+
+> 💡 Si prefieres usar Docker, ve a [Quick Start](#-quick-start-docker)
 
 ### 1. Clonar el repositorio
 
@@ -146,7 +172,42 @@ Abrir `exploracion.ipynb` en Jupyter o VS Code para analizar la estructura de ca
 
 ---
 
-## 📊 Tablas Procesadas
+## � Docker
+
+### Construir la imagen
+
+```bash
+docker build -t pipeline_api_rest .
+```
+
+### Ejecutar el contenedor
+
+```bash
+# Windows (PowerShell)
+docker run -v ${PWD}\output:/app/output --name pipeline_rest pipeline_api_rest
+
+# Linux/Mac
+docker run -v $(pwd)/output:/app/output --name pipeline_rest pipeline_api_rest
+```
+
+> 📁 Los datos se guardarán en la carpeta `output/` de tu directorio actual.
+
+### Comandos útiles
+
+```bash
+# Ver logs del contenedor
+docker logs pipeline_rest
+
+# Eliminar el contenedor
+docker rm pipeline_rest
+
+# Ejecutar nuevamente (requiere eliminar el anterior primero)
+docker rm pipeline_rest; docker run -v ${PWD}\output:/app/output --name pipeline_rest pipeline_api_rest
+```
+
+---
+
+## �📊 Tablas Procesadas
 
 El pipeline procesa 11 tablas de un sistema de e-commerce:
 
